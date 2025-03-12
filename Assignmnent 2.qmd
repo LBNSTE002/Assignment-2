@@ -117,16 +117,17 @@ Before running the foreach function set the seed to 1234.
 # Set seed for reproducibility
 set.seed(1234)
 
-# Create an iterator for normal random numbers: 3 vectors, each containing 5 values
+# Create an iterator for 3 vectors, each containing 5 normal random numbers
 rand_iter <- irnorm(n = 5, mean = 0, sd = 1)
 
-# Use foreach to find the maximum in each vector
-max_values <- foreach(vec = rand_iter, .combine = c) %do% {
-  max(vec)
+# Use foreach to find the maximum in each vector (3 iterations)
+max_values <- foreach(i = 1:3, .combine = c) %do% {
+  max(nextElem(rand_iter))
 }
 
-# Print the largest values
+# Print the largest values from each vector
 print(max_values)
+
 ```
 
 ## Question 5
@@ -135,26 +136,37 @@ Compare run time between parLapply, foreach and replicate for the above problem.
 
 ```{r}
 
-# Define task: Generate 3 vectors of 5 normal random numbers and find max
+# Define task function: Generate a 5-value normal vector and return max
 task <- function() {
   max(rnorm(5))
 }
 
-# Number of iterations
+# Number of iterations (bootstraps)
 B <- 1000
 
-# Setup parallel backend
+# Setup parallel backend for foreach and parLapply
 cl <- makeCluster(detectCores() - 1)
-
-# Export the task function to worker nodes
-clusterExport(cl, varlist = c("task"))
+registerDoParallel(cl)
 
 # Measure time for parLapply
+clusterExport(cl, varlist = c("task"))  # Ensure task is available to workers
 system.time({
   par_result <- parLapply(cl, 1:B, function(i) task())
 })
 
-# Stop the cluster after use
+# Measure time for foreach (parallel)
+system.time({
+  foreach_result <- foreach(i = 1:B, .combine = c) %dopar% {
+    task()
+  }
+})
+
+# Measure time for replicate (serial)
+system.time({
+  replicate_result <- replicate(B, task())
+})
+
+# Stop parallel processing
 stopCluster(cl)
 
 ```
