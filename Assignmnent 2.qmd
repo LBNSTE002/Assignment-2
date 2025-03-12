@@ -2,10 +2,159 @@
 title: "Assignmnent 2"
 ---
 
-## Quarto
+```{r}
+library(foreach)
+library(doParallel)
+library(MASS)
+library(boot)
+library(iterators)
+library(parallel)
+```
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+## Question 1
+
+Use a foreach loop to repeat 100 times:
+
+Generate a random sample from an exponential distribution with mean 1
+
+Calculate mean and variance
+
+*Row-bind* your results (rbind) (results = mean and variance).
 
 ```{r}
-1 + 1
+
+# Use foreach loop to generate 100 samples, compute mean and variance
+results <- foreach(i = 1:100, .combine = rbind) %do% {
+  sample_data <- rexp(50, rate = 1) # Exponential with mean 1 (rate = 1/mean)
+  c(mean = mean(sample_data), variance = var(sample_data))
+}
+
+head(round(results,3))
+
+```
+
+## Question 2
+
+Use the doParrallel package and foreach to bootstrap the median for the galaxies data (in library MASS).
+
+If the foreach function needs access to data or a function from a certain package, this can be done by adding the .packages='MASS' (for example) argument.
+
+How does processing time compare to that of serial processing? If each iteration’s run time is small, relative to the amount of data that needs to be loaded and returned, parallel processing might not actually speed up the total run time. Bootstrapping is relatively small: draw a sample, calculate a statistic. It might only start making a difference if each chunk becomes large relatively to the overheads of data transfer. Experiment with this. Try doing 1000 bootstrap samples at a time instead of managing single bootstrap samples.
+
+```{r}
+
+# Set up parallel backend
+cl <- makeCluster(detectCores() - 1) # Use available cores minus one
+registerDoParallel(cl)
+
+# Define bootstrap function
+bootstrap_median <- function(data, B = 1000) {
+  foreach(i = 1:B, .combine = c, .packages = 'MASS') %dopar% {
+    sample_median <- median(sample(data, replace = TRUE))
+    sample_median
+  }
+}
+
+# Get data and run bootstrap
+data <- galaxies
+system.time(boot_parallel <- bootstrap_median(data, B = 1000))
+
+# Compare with serial processing
+system.time(boot_serial <- replicate(1000, median(sample(data, replace = TRUE))))
+
+# Stop cluster
+stopCluster(cl)
+
+```
+
+## Question 3
+
+Estimate coverage of a percentile bootstrap confidence interval for the following scenario: sample of size 50 from an exponential distribution with mean 1.
+
+```{r}
+
+# Function to compute the median
+statistic_function <- function(data, indices) {
+  return(median(data[indices]))
+}
+
+# Coverage estimation
+estimate_coverage <- function(nsim = 1000, n = 50, alpha = 0.05) {
+  coverage <- 0
+  
+  for (i in 1:nsim) {
+    sample_data <- rexp(n, rate = 1)
+    boot_out <- boot(sample_data, statistic_function, R = 1000)
+    
+    ci <- boot.ci(boot_out, type = "perc")$percent[4:5] # Extract percentile CI
+    true_median <- log(2) # True median of Exp(1)
+    
+    if (!is.null(ci) && true_median >= ci[1] && true_median <= ci[2]) {
+      coverage <- coverage + 1
+    }
+  }
+  
+  return(coverage / nsim) # Proportion of times CI contains the true median
+}
+
+# Estimate coverage probability
+set.seed(123)
+coverage_probability <- estimate_coverage()
+print(coverage_probability)
+
+```
+
+## Question 4
+
+The package iterators provides several functions that can be used to create sequences for the foreach function. For example, the irnorm function creates an object that iterates over vectors of normally distributed random numbers. It is useful when you need to use random variables drawn from one distribution in an expression that is run in parallel.
+
+In this exercise, use the foreach and irnorm functions to iterate over 3 vectors, each containing 5 random variables. Find the largest value in each vector, and print those largest values.
+
+Before running the foreach function set the seed to 1234.
+
+```{r}
+
+# Set seed for reproducibility
+set.seed(1234)
+
+# Create an iterator for normal random numbers: 3 vectors, each containing 5 values
+rand_iter <- irnorm(n = 5, mean = 0, sd = 1)
+
+# Use foreach to find the maximum in each vector
+max_values <- foreach(vec = rand_iter, .combine = c) %do% {
+  max(vec)
+}
+
+# Print the largest values
+print(max_values)
+```
+
+## Question 5
+
+Compare run time between parLapply, foreach and replicate for the above problem.
+
+```{r}
+
+# Define task: Generate 3 vectors of 5 normal random numbers and find max
+task <- function() {
+  max(rnorm(5))
+}
+
+# Number of iterations
+B <- 1000
+
+# Setup parallel backend
+cl <- makeCluster(detectCores() - 1)
+
+# Export the task function to worker nodes
+clusterExport(cl, varlist = c("task"))
+
+# Measure time for parLapply
+system.time({
+  par_result <- parLapply(cl, 1:B, function(i) task())
+})
+
+# Stop the cluster after use
+stopCluster(cl)
+
 ```
