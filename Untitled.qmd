@@ -4,3 +4,5 @@ format: html
 ---
 
 # Assignment 2 Statistical Computing
+
+# GITHUB: <https://github.com/LBNSTE002/Assignment-2>
