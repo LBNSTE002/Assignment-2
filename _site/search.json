@@ -1,51 +1,44 @@
 [
   {
-    "objectID": "Assignmnent 2.html",
-    "href": "Assignmnent 2.html",
-    "title": "Assignmnent 2",
-    "section": "",
-    "text": "Code\nlibrary(foreach)\nlibrary(doParallel)\n\n\nLoading required package: iterators\n\n\nLoading required package: parallel\n\n\nCode\nlibrary(MASS)\nlibrary(boot)\nlibrary(iterators)\nlibrary(parallel)"
-  },
-  {
-    "objectID": "Assignmnent 2.html#question-1",
-    "href": "Assignmnent 2.html#question-1",
-    "title": "Assignmnent 2",
-    "section": "1 Question 1",
-    "text": "1 Question 1\nUse a foreach loop to repeat 100 times:\nGenerate a random sample from an exponential distribution with mean 1\nCalculate mean and variance\nRow-bind your results (rbind) (results = mean and variance).\n\n\nCode\n# Use foreach loop to generate 100 samples, compute mean and variance\nresults &lt;- foreach(i = 1:100, .combine = rbind) %do% {\n  sample_data &lt;- rexp(100, rate = 1) # Exponential with mean 1 (rate = 1/mean)\n  c(mean = mean(sample_data), variance = var(sample_data))\n}\n\nhead(round(results,3))\n\n\n          mean variance\nresult.1 1.058    1.303\nresult.2 0.900    0.825\nresult.3 1.083    1.084\nresult.4 1.095    1.414\nresult.5 0.985    0.769\nresult.6 0.935    0.722"
-  },
-  {
-    "objectID": "Assignmnent 2.html#question-2",
-    "href": "Assignmnent 2.html#question-2",
-    "title": "Assignmnent 2",
-    "section": "2 Question 2",
-    "text": "2 Question 2\nUse the doParrallel package and foreach to bootstrap the median for the galaxies data (in library MASS).\nIf the foreach function needs access to data or a function from a certain package, this can be done by adding the .packages=‘MASS’ (for example) argument.\nHow does processing time compare to that of serial processing? If each iteration’s run time is small, relative to the amount of data that needs to be loaded and returned, parallel processing might not actually speed up the total run time. Bootstrapping is relatively small: draw a sample, calculate a statistic. It might only start making a difference if each chunk becomes large relatively to the overheads of data transfer. Experiment with this. Try doing 1000 bootstrap samples at a time instead of managing single bootstrap samples.\n\n\nCode\n# Set up parallel backend\ncl &lt;- makeCluster(detectCores() - 1) # Use available cores minus one\nregisterDoParallel(cl)\n\n# Define bootstrap function\nbootstrap_median &lt;- function(data, B = 1000) {\n  foreach(i = 1:B, .combine = c, .packages = 'MASS') %dopar% {\n    sample_median &lt;- median(sample(data, replace = TRUE))\n    sample_median\n  }\n}\n\n# Get data and run bootstrap\ndata &lt;- galaxies\nsystem.time(boot_parallel &lt;- bootstrap_median(data, B = 1000))\n\n\n   user  system elapsed \n  0.089   0.013   0.125 \n\n\nCode\n# Compare with serial processing\nsystem.time(boot_serial &lt;- replicate(1000, median(sample(data, replace = TRUE))))\n\n\n   user  system elapsed \n  0.019   0.000   0.018 \n\n\nCode\n# Stop cluster\nstopCluster(cl)"
-  },
-  {
-    "objectID": "Assignmnent 2.html#question-3",
-    "href": "Assignmnent 2.html#question-3",
-    "title": "Assignmnent 2",
-    "section": "3 Question 3",
-    "text": "3 Question 3\nEstimate coverage of a percentile bootstrap confidence interval for the following scenario: sample of size 50 from an exponential distribution with mean 1.\n\n\nCode\n# Function to compute the median\nstatistic_function &lt;- function(data, indices) {\n  return(median(data[indices]))\n}\n\n# Coverage estimation\nestimate_coverage &lt;- function(nsim = 1000, n = 50, alpha = 0.05) {\n  coverage &lt;- 0\n  \n  for (i in 1:nsim) {\n    sample_data &lt;- rexp(n, rate = 1)\n    boot_out &lt;- boot(sample_data, statistic_function, R = 1000)\n    \n    ci &lt;- boot.ci(boot_out, type = \"perc\")$percent[4:5] # Extract percentile CI\n    true_median &lt;- log(2) # True median of Exp(1)\n    \n    if (!is.null(ci) && true_median &gt;= ci[1] && true_median &lt;= ci[2]) {\n      coverage &lt;- coverage + 1\n    }\n  }\n  \n  return(coverage / nsim) # Proportion of times CI contains the true median\n}\n\n# Estimate coverage probability\nset.seed(123)\ncoverage_probability &lt;- estimate_coverage()\nprint(coverage_probability)\n\n\n[1] 0.951"
-  },
-  {
-    "objectID": "Assignmnent 2.html#question-4",
-    "href": "Assignmnent 2.html#question-4",
-    "title": "Assignmnent 2",
-    "section": "4 Question 4",
-    "text": "4 Question 4\nThe package iterators provides several functions that can be used to create sequences for the foreach function. For example, the irnorm function creates an object that iterates over vectors of normally distributed random numbers. It is useful when you need to use random variables drawn from one distribution in an expression that is run in parallel.\nIn this exercise, use the foreach and irnorm functions to iterate over 3 vectors, each containing 5 random variables. Find the largest value in each vector, and print those largest values.\nBefore running the foreach function set the seed to 1234.\n\n\nCode\n# Set seed for reproducibility\nset.seed(1234)\n\n# Create an iterator for 3 vectors, each containing 5 normal random numbers\nrand_iter &lt;- irnorm(n = 5, mean = 0, sd = 1)\n\n# Use foreach to find the maximum in each vector (3 iterations)\nmax_values &lt;- foreach(i = 1:3, .combine = c) %do% {\n  max(nextElem(rand_iter))\n}\n\n# Print the largest values from each vector\nprint(max_values)\n\n\n[1] 1.0844412 0.5060559 0.9594941"
-  },
-  {
-    "objectID": "Assignmnent 2.html#question-5",
-    "href": "Assignmnent 2.html#question-5",
-    "title": "Assignmnent 2",
-    "section": "5 Question 5",
-    "text": "5 Question 5\nCompare run time between parLapply, foreach and replicate for the above problem.\n\n\nCode\n# Define task function: Generate a 5-value normal vector and return max\ntask &lt;- function() {\n  max(rnorm(5))\n}\n\n# Number of iterations (bootstraps)\nB &lt;- 1000\n\n# Setup parallel backend for foreach and parLapply\ncl &lt;- makeCluster(detectCores() - 1)\nregisterDoParallel(cl)\n\n# Measure time for parLapply\nclusterExport(cl, varlist = c(\"task\"))  # Ensure task is available to workers\nsystem.time({\n  par_result &lt;- parLapply(cl, 1:B, function(i) task())\n})\n\n\n   user  system elapsed \n  0.001   0.000   0.016 \n\n\nCode\n# Measure time for foreach (parallel)\nsystem.time({\n  foreach_result &lt;- foreach(i = 1:B, .combine = c) %dopar% {\n    task()\n  }\n})\n\n\n   user  system elapsed \n  0.092   0.011   0.116 \n\n\nCode\n# Measure time for replicate (serial)\nsystem.time({\n  replicate_result &lt;- replicate(B, task())\n})\n\n\n   user  system elapsed \n  0.002   0.000   0.002 \n\n\nCode\n# Stop parallel processing\nstopCluster(cl)"
-  },
-  {
     "objectID": "index.html",
     "href": "index.html",
     "title": "index.qmd",
     "section": "",
     "text": "1 Assignment 2 Statistical Computing\n\n\n2 GITHUB: https://github.com/LBNSTE002/Assignment-2"
+  },
+  {
+    "objectID": "Assignmnent 2.html#question-1",
+    "href": "Assignmnent 2.html#question-1",
+    "title": "2  Assignmnent 2",
+    "section": "2.1 Question 1",
+    "text": "2.1 Question 1\nUse a foreach loop to repeat 100 times:\nGenerate a random sample from an exponential distribution with mean 1\nCalculate mean and variance\nRow-bind your results (rbind) (results = mean and variance).\n\n\nCode\n# Use foreach loop to generate 100 samples, compute mean and variance\nresults &lt;- foreach(i = 1:100, .combine = rbind) %do% {\n  sample_data &lt;- rexp(100, rate = 1) # Exponential with mean 1 (rate = 1/mean)\n  c(mean = mean(sample_data), variance = var(sample_data))\n}\n\nhead(round(results,3))\n\n\n          mean variance\nresult.1 0.930    0.620\nresult.2 0.968    0.743\nresult.3 1.016    1.203\nresult.4 0.879    0.718\nresult.5 1.090    0.971\nresult.6 0.984    1.127"
+  },
+  {
+    "objectID": "Assignmnent 2.html#question-2",
+    "href": "Assignmnent 2.html#question-2",
+    "title": "2  Assignmnent 2",
+    "section": "2.2 Question 2",
+    "text": "2.2 Question 2\nUse the doParrallel package and foreach to bootstrap the median for the galaxies data (in library MASS).\nIf the foreach function needs access to data or a function from a certain package, this can be done by adding the .packages=‘MASS’ (for example) argument.\nHow does processing time compare to that of serial processing? If each iteration’s run time is small, relative to the amount of data that needs to be loaded and returned, parallel processing might not actually speed up the total run time. Bootstrapping is relatively small: draw a sample, calculate a statistic. It might only start making a difference if each chunk becomes large relatively to the overheads of data transfer. Experiment with this. Try doing 1000 bootstrap samples at a time instead of managing single bootstrap samples.\n\n\nCode\n# Set up parallel backend\ncl &lt;- makeCluster(detectCores() - 1) # Use available cores minus one\nregisterDoParallel(cl)\n\n# Define bootstrap function\nbootstrap_median &lt;- function(data, B = 1000) {\n  foreach(i = 1:B, .combine = c, .packages = 'MASS') %dopar% {\n    sample_median &lt;- median(sample(data, replace = TRUE))\n    sample_median\n  }\n}\n\n# Get data and run bootstrap\ndata &lt;- galaxies\nsystem.time(boot_parallel &lt;- bootstrap_median(data, B = 1000))\n\n\n   user  system elapsed \n  0.098   0.014   0.159 \n\n\nCode\n# Compare with serial processing\nsystem.time(boot_serial &lt;- replicate(1000, median(sample(data, replace = TRUE))))\n\n\n   user  system elapsed \n  0.019   0.000   0.020 \n\n\nCode\n# Stop cluster\nstopCluster(cl)"
+  },
+  {
+    "objectID": "Assignmnent 2.html#question-3",
+    "href": "Assignmnent 2.html#question-3",
+    "title": "2  Assignmnent 2",
+    "section": "2.3 Question 3",
+    "text": "2.3 Question 3\nEstimate coverage of a percentile bootstrap confidence interval for the following scenario: sample of size 50 from an exponential distribution with mean 1.\n\n\nCode\n# Function to compute the median\nstatistic_function &lt;- function(data, indices) {\n  return(median(data[indices]))\n}\n\n# Coverage estimation\nestimate_coverage &lt;- function(nsim = 1000, n = 50, alpha = 0.05) {\n  coverage &lt;- 0\n  \n  for (i in 1:nsim) {\n    sample_data &lt;- rexp(n, rate = 1)\n    boot_out &lt;- boot(sample_data, statistic_function, R = 1000)\n    \n    ci &lt;- boot.ci(boot_out, type = \"perc\")$percent[4:5] # Extract percentile CI\n    true_median &lt;- log(2) # True median of Exp(1)\n    \n    if (!is.null(ci) && true_median &gt;= ci[1] && true_median &lt;= ci[2]) {\n      coverage &lt;- coverage + 1\n    }\n  }\n  \n  return(coverage / nsim) # Proportion of times CI contains the true median\n}\n\n# Estimate coverage probability\nset.seed(123)\ncoverage_probability &lt;- estimate_coverage()\nprint(coverage_probability)\n\n\n[1] 0.951"
+  },
+  {
+    "objectID": "Assignmnent 2.html#question-4",
+    "href": "Assignmnent 2.html#question-4",
+    "title": "2  Assignmnent 2",
+    "section": "2.4 Question 4",
+    "text": "2.4 Question 4\nThe package iterators provides several functions that can be used to create sequences for the foreach function. For example, the irnorm function creates an object that iterates over vectors of normally distributed random numbers. It is useful when you need to use random variables drawn from one distribution in an expression that is run in parallel.\nIn this exercise, use the foreach and irnorm functions to iterate over 3 vectors, each containing 5 random variables. Find the largest value in each vector, and print those largest values.\nBefore running the foreach function set the seed to 1234.\n\n\nCode\n# Set seed for reproducibility\nset.seed(1234)\n\n# Create an iterator for 3 vectors, each containing 5 normal random numbers\nrand_iter &lt;- irnorm(n = 5, mean = 0, sd = 1)\n\n# Use foreach to find the maximum in each vector (3 iterations)\nmax_values &lt;- foreach(i = 1:3, .combine = c) %do% {\n  max(nextElem(rand_iter))\n}\n\n# Print the largest values from each vector\nprint(max_values)\n\n\n[1] 1.0844412 0.5060559 0.9594941"
+  },
+  {
+    "objectID": "Assignmnent 2.html#question-5",
+    "href": "Assignmnent 2.html#question-5",
+    "title": "2  Assignmnent 2",
+    "section": "2.5 Question 5",
+    "text": "2.5 Question 5\nCompare run time between parLapply, foreach and replicate for the above problem.\n\n\nCode\n# Define task function: Generate a 5-value normal vector and return max\ntask &lt;- function() {\n  max(rnorm(5))\n}\n\n# Number of iterations (bootstraps)\nB &lt;- 1000\n\n# Setup parallel backend for foreach and parLapply\ncl &lt;- makeCluster(detectCores() - 1)\nregisterDoParallel(cl)\n\n# Measure time for parLapply\nclusterExport(cl, varlist = c(\"task\"))  # Ensure task is available to workers\nsystem.time({\n  par_result &lt;- parLapply(cl, 1:B, function(i) task())\n})\n\n\n   user  system elapsed \n  0.001   0.000   0.016 \n\n\nCode\n# Measure time for foreach (parallel)\nsystem.time({\n  foreach_result &lt;- foreach(i = 1:B, .combine = c) %dopar% {\n    task()\n  }\n})\n\n\n   user  system elapsed \n  0.091   0.012   0.116 \n\n\nCode\n# Measure time for replicate (serial)\nsystem.time({\n  replicate_result &lt;- replicate(B, task())\n})\n\n\n   user  system elapsed \n  0.002   0.000   0.002 \n\n\nCode\n# Stop parallel processing\nstopCluster(cl)"
   }
 ]
