@@ -1,0 +1,6 @@
+---
+title: "index.qmd"
+format: html
+---
+
+# Assignment 2 Statistical Computing

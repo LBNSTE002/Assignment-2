@@ -1,5 +1,7 @@
 ---
 title: "Assignmnent 2"
+author: "Stephan Liebenberg LBNSTE002"
+output: html
 ---
 
 ```{r}
