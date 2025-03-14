@@ -1,12 +1,10 @@
 project:
-  type: website
-  output-dir: _site  
-  render:
-    - index.qmd
-    - Assignmnent 2.qmd
-
-book:
+  type: book
   title: "Statistical Computing"
+  output-dir: _site  
+
+
+website:
   sidebar:
     border: true
     background: light
@@ -19,6 +17,7 @@ book:
       - icon: github
         href: https://github.com/LBNSTE002
 
+book:
   chapters:
     - index.qmd
     - Assignmnent 2.qmd
